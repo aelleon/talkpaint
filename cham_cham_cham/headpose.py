@@ -22,6 +22,7 @@ face_detected = False
 last_detected_direction = "Forward"
 consecutive_correct = 0
 win_message_time = None
+timer = 4
 lives = 3
 
 while cap.isOpened():
@@ -119,16 +120,22 @@ while cap.isOpened():
         countdown = 3 - elapsed
         if countdown > 0:
             cv2.putText(image, f"Starting in {countdown}", (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (0,255,255), 3)
+            if countdown == timer - 1:
+               os.system('afplay /System/Library/Sounds/Frog.aiff &')
+               timer -= 1
         else:
             forbidden_direction = random.choice(directions)
             game_state = "playing"
             play_start = time.time()
     elif game_state == "playing":
+        timer = 4
         if detected_direction == forbidden_direction or detected_direction == "Forward":
+            os.system('afplay /System/Library/Sounds/Sosumi.aiff &')
             result_text = "Wrong!"
             color = (0,0,255)
             lives -= 1
         else:
+            os.system('afplay /System/Library/Sounds/Glass.aiff &')
             result_text = "Correct!"
             color = (0,255,0)
             # consecutive_correct += 1
