@@ -1,0 +1,9 @@
+[project]
+name = "head-pose-detector"
+version = "0.1.0"
+dependencies = [
+    "numpy",
+    "opencv-python",
+    "mediapipe"
+]
+requires-python = ">=3.10,<3.13"
