@@ -33,6 +33,27 @@ def win():
             ser.close()
             print("Serial port closed.")
 
+def command(input):
+    try: 
+        ser = serial.Serial(ARDUINO_PORT, BAUD_RATE, timeout=1)
+        time.sleep(2) # Give the Arduino time to reset after opening serial
+
+        if ARDUINO_PORT is None:
+            print("Arduino not found. Please check if it's plugged in and try again.")
+            print("Available ports:")
+            for port in serial.tools.list_ports.comports():
+                print(f"  {port.device} - {port.description}")
+            exit()
+        ser.write(input.encode()) # Send 'win' command to Arduino
+        response = ser.readline().decode().strip()
+    except serial.SerialException as e:
+        print(f"Error: Could not open serial port {ARDUINO_PORT}. {e}")
+        print("Common issues: Arduino IDE Serial Monitor is open, incorrect port, or Arduino not plugged in.")
+    finally:
+        if 'ser' in locals() and ser.is_open:
+            ser.close()
+            print("Serial port closed.")
+
 # --- Configuration ---
 ARDUINO_PORT = find_arduino_port()
 BAUD_RATE = 9600
