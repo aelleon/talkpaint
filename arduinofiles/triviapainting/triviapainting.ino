@@ -9,7 +9,7 @@ int pos = 0;
 // Relay pins
 const int relayPins[3] = {3, 4, 5};
 
-bool inIdleMode = false;
+bool inIdleMode = true;
 
 void setup() {
   myservo.attach(9);
@@ -83,5 +83,5 @@ void runIdleStep() {
     bool on = random(0, 2);
     digitalWrite(relayPins[i], on ? LOW : HIGH);
   }
-  delay(200);
+  delay(450);
 }
