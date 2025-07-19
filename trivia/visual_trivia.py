@@ -4,11 +4,19 @@ import subprocess
 import json
 import threading
 import cv2
+from arduino_setup import win
 
 MODEL_TO_USE = "gemma3:latest"
 DEFAULT_RATE = 180  # Default speech rate for TTS
 TOTAL_QUESTIONS = 5
-BOX_LOCATIONS = [(100, 100), (1000, 1000), (50, 300), (300, 300) ]
+WIN_TOTAL = 4  # Minimum score to win the game
+BOX_LOCATIONS = [(650, 300), (650, 1300), (350, 800), (1000, 800)]
+TEXT_MAIN_COLOR = (0, 0, 0)
+TEXT_SELECTION_COLOR = (255, 0, 0)  # Color for selected text
+
+END_GAME = {
+    "game_over": False,
+}
 image = None  # Placeholder for the image to be displayed during the game
 
 
@@ -24,9 +32,16 @@ def get_trivia_questions(subject, retry_count=3, number_of_questions=10):
         print("Failed to get trivia questions after multiple attempts.")
         return []
 
+    first_sentence = (
+        f"Generate {number_of_questions} new unique multiple-choice questions about '{subject}' that gradually get harder."
+        if number_of_questions > 1
+        else f"Generate a new unique multiple-choice question about '{subject}'."
+    )
     initial_prompt = (
-        f"Generate {number_of_questions} new multiple-choice questions about '{subject}' that gradually get harder. "
+        f"{first_sentence}."
+        "Do not repeat questions or answers from previous requests. "
         "Make answers choices as only one word or short phrases."
+        "Make questions concise and clear. "
         "Do not include anything inappropriate or offensive. "
         "Return them as a JSON array, each item formatted as: "
         "{ question: string, answerChoices: string[], answer: string }."
@@ -44,7 +59,12 @@ def get_trivia_questions(subject, retry_count=3, number_of_questions=10):
     print(f"AI: {response_text}")
 
     try:
-        clean_json = response_text.strip("`").split("\n", 1)[1].rsplit("\n", 1)[0]
+        clean_json = (
+            response_text.strip("`")
+            .split("\n", 1)[1]
+            .rsplit("\n", 1)[0]
+            .replace("‘", "'")
+        )
         questions = json.loads(clean_json)
         return questions
     except json.JSONDecodeError:
@@ -53,6 +73,32 @@ def get_trivia_questions(subject, retry_count=3, number_of_questions=10):
             print(f"{retry_count} retries left")
             print("Retrying to get trivia questions...")
             return get_trivia_questions(subject, retry_count - 1)
+
+
+def wrap_text(text, font_face, font_scale, thickness, max_width):
+    words = text.split()
+    lines = []
+    current_line = []
+
+    for word in words:
+        current_line.append(word)
+        # Check the width of the current line
+        (width, height), baseline = cv2.getTextSize(
+            " ".join(current_line), font_face, font_scale, thickness
+        )
+
+        if width > max_width and len(current_line) > 1:
+            # Remove the last word and add the current line to lines
+            current_line.pop()
+            lines.append(" ".join(current_line))
+            # Start new line with the word that didn't fit
+            current_line = [word]
+
+    # Add the last line
+    if current_line:
+        lines.append(" ".join(current_line))
+
+    return lines
 
 
 def ask_question(question, answer_choices, answer, question_number, score):
@@ -65,23 +111,57 @@ def ask_question(question, answer_choices, answer, question_number, score):
 
     question_number = question_number + 1
     question_str = f"\nQuestion {question_number}: {question}"
-    # Draw the question at the top of the image
-    cv2.putText(image, question, (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+    # Wrap and draw the question at the top of the image
+    max_width = image.shape[1] - 40  # Leave 20px margin on each side
+    question_lines = wrap_text(question, cv2.FONT_HERSHEY_SIMPLEX, 1, 2, max_width)
+
+    # Draw each line of the question
+    y_offset = 30
+    for line in question_lines:
+        cv2.putText(
+            image, line, (20, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 1, TEXT_MAIN_COLOR, 2
+        )
+        y_offset += 40  # Space between lines
+
     cv2.imshow("Trivia Game", image)
     cv2.waitKey(1)  # Allow the image to be displayed
 
     say(question_str)
 
     for j, choice in enumerate(answer_choices):
-        cv2.putText(
-            image,
-            f"{choice}",
-            BOX_LOCATIONS[j],
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1.5,
-            (0, 0, 255),
-            2,
+        # Calculate the size of the text and wrap if necessary
+        max_choice_width = 400  # Maximum width for answer choices
+        choice_lines = wrap_text(
+            choice, cv2.FONT_HERSHEY_SIMPLEX, 2, 5, max_choice_width
         )
+
+        # Get the center point from BOX_LOCATIONS
+        center_x, center_y = BOX_LOCATIONS[j]
+
+        # Calculate total height of wrapped text
+        total_height = len(choice_lines) * 60  # 60 pixels between lines
+
+        # Draw each line of the answer, centered
+        for i, line in enumerate(choice_lines):
+            (text_width, text_height), baseline = cv2.getTextSize(
+                line, cv2.FONT_HERSHEY_SIMPLEX, 2, 5
+            )
+            # Adjust y position for multiple lines
+            y_pos = center_y - (total_height // 2) + (i * 60)
+            # Center the text horizontally
+            x_pos = center_x - (text_width // 2)
+
+            cv2.putText(
+                image,
+                line,
+                (x_pos, y_pos),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                2,
+                TEXT_MAIN_COLOR,
+                5,
+            )
+
         cv2.imshow("Trivia Game", image)
         cv2.waitKey(1)  # Allow the image to be displayed
         say(f"{chr(65 + j)}.")
@@ -99,29 +179,56 @@ def ask_question(question, answer_choices, answer, question_number, score):
     while (currentTime - startTime) < timeout:
         # Create a copy of the current image to draw the timer bar and selections
         display_image = image.copy()
-        
+
         # Redraw all choices, highlighting the selected one
         for j, choice in enumerate(answer_choices):
-            color = (0, 255, 0) if j == selected_index else (0, 0, 255)  # Green if selected, red otherwise
-            cv2.putText(
-                display_image,
-                f"{choice}",
-                BOX_LOCATIONS[j],
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1.5,
-                color,
-                2,
+            color = TEXT_SELECTION_COLOR if j == selected_index else TEXT_MAIN_COLOR
+
+            # Wrap and redraw the choice with new color
+            choice_lines = wrap_text(
+                choice, cv2.FONT_HERSHEY_SIMPLEX, 2, 5, max_choice_width
             )
-        
+            center_x, center_y = BOX_LOCATIONS[j]
+            total_height = len(choice_lines) * 60
+
+            for i, line in enumerate(choice_lines):
+                (text_width, text_height), baseline = cv2.getTextSize(
+                    line, cv2.FONT_HERSHEY_SIMPLEX, 2, 5
+                )
+                y_pos = center_y - (total_height // 2) + (i * 60)
+                x_pos = center_x - (text_width // 2)
+
+                cv2.putText(
+                    display_image,
+                    line,
+                    (x_pos, y_pos),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    2,
+                    color,
+                    5,
+                )
+
         # Calculate remaining time and bar width
         elapsed = currentTime - startTime
         remaining_ratio = 1 - (elapsed / timeout)
         current_bar_width = int(bar_width * remaining_ratio)
-        
+
         # Draw the timer bar
-        cv2.rectangle(display_image, (20, bar_y), (20 + bar_width, bar_y + bar_height), (100, 100, 100), -1)  # Background bar
-        cv2.rectangle(display_image, (20, bar_y), (20 + current_bar_width, bar_y + bar_height), (0, 255, 0), -1)  # Time remaining
-        
+        cv2.rectangle(
+            display_image,
+            (20, bar_y),
+            (20 + bar_width, bar_y + bar_height),
+            (100, 100, 100),
+            -1,
+        )  # Background bar
+        cv2.rectangle(
+            display_image,
+            (20, bar_y),
+            (20 + current_bar_width, bar_y + bar_height),
+            TEXT_SELECTION_COLOR,
+            -1,
+        )  # Time remaining
+
         # Show the image with the timer bar and selections
         cv2.imshow("Trivia Game", display_image)
         key = cv2.waitKey(10)
@@ -139,9 +246,10 @@ def ask_question(question, answer_choices, answer, question_number, score):
         score += 1
     else:
         say(f"Wrong! The correct answer was: {answer}")
-    
+
     # Display the final state for a moment
     cv2.waitKey(500)
+    return score
 
 
 def run_trivia_game():
@@ -189,7 +297,7 @@ def run_trivia_game():
 
     follow_up_questions_thread.start()
 
-    ask_question(questions[0], answer_choices[0], answers[0], 0, score)
+    score = ask_question(questions[0], answer_choices[0], answers[0], 0, score)
     follow_up_questions_thread.join()
     if follow_up_response:
         questions.extend([response["question"] for response in follow_up_response])
@@ -199,11 +307,16 @@ def run_trivia_game():
         answers.extend([response["answer"] for response in follow_up_response])
 
     for i, question in enumerate(questions):
-        if i == 0:
+        if i == 0 or i >= TOTAL_QUESTIONS:
             continue
-        ask_question(question, answer_choices[i], answers[i], i, score)
+        score = ask_question(question, answer_choices[i], answers[i], i, score)
 
-    say(f"Game Over! You scored {score} out of {len(questions)}.")
+    say(f"Game Over! You scored {score} out of {TOTAL_QUESTIONS}.")
+    if score >= WIN_TOTAL:
+        is_winner = input("Dispense?")
+        if is_winner.lower() in ["yes", "y"]:
+            say("Congratulations! You won the game!", rate=DEFAULT_RATE + 20)
+            win()
 
 
 if __name__ == "__main__":
