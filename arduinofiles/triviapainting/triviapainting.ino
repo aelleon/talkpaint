@@ -13,7 +13,7 @@ bool inIdleMode = false;
 
 void setup() {
   myservo.attach(9);
-  myservo.write(180);
+  myservo.write(90);
   delay(50);
 
   Serial.begin(9600);
@@ -29,18 +29,21 @@ void setup() {
 
 void loop() {
   buttonState = digitalRead(buttonPin);
-
+  Serial.println(buttonState);
+  if (buttonState==0) {
+    runServoSequence();
+  }
   if (Serial.available() > 0) {
     String input = Serial.readStringUntil('\n');
     input.trim();
 
-    if (input.equalsIgnoreCase("win") || buttonState == LOW) {
+    if (input.equalsIgnoreCase("win")) {
       runServoSequence();
     }
 
     if (input.equalsIgnoreCase("idle")) {
       inIdleMode = true;
-    } else if (input == "1" || input == "2" || input == "3") {
+    } else if (input == "1" || input == "2" || input == "3"|| input == "0") {
       int count = input.toInt();
       setRelays(count);
       inIdleMode = false;
@@ -54,11 +57,11 @@ void loop() {
 
 void runServoSequence() {
   Serial.println("Triggered!");
-  for (pos = 180; pos >= 0; pos -= 1) {
+  for (pos = 90; pos >= 0; pos -= 1) {
     myservo.write(pos);
     delay(5);
   }
-  for (pos = 0; pos <= 180; pos += 1) {
+  for (pos = 0; pos <= 90; pos += 1) {
     Serial.println(pos);
     myservo.write(pos);
     delay(7);

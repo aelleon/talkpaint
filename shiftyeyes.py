@@ -64,52 +64,57 @@ def animate_eyes():
         eye_state = random.choice(["left", "center", "right"])
         time.sleep(0.5)
 
-# Setup phase: 10 seconds to drag
-cv2.namedWindow("Eye Animation")
-cv2.setMouseCallback("Eye Animation", mouse_callback)
 
-# Setup phase
-setup_duration = 19  # seconds
-fps = 30
-delay = int(1000 / fps)
+def start_eyes(): 
+    # Setup phase: 10 seconds to drag
+    cv2.namedWindow("Eye Animation")
+    cv2.setMouseCallback("Eye Animation", mouse_callback)
 
-print("🕹️ Setup: Drag eyes for 10 seconds...")
+    # Setup phase
+    setup_duration = 19  # seconds
+    fps = 30
+    delay = int(1000 / fps)
 
-start_time = time.time()
+    print("🕹️ Setup: Drag eyes for 10 seconds...")
 
-while True:
-    frame = np.zeros((350, 840, 3), dtype=np.uint8)
+    start_time = time.time()
 
-    # Display countdown timer
-    remaining_time = int(setup_duration - (time.time() - start_time))
-    if remaining_time > 0:
-        cv2.putText(frame, f"Setup mode: Drag eyes ({remaining_time}s)", (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+    while True:
+        frame = np.zeros((350, 840, 3), dtype=np.uint8)
 
-    overlay_image(frame, eye_imgs["center"], *left_eye_pos)
-    overlay_image(frame, eye_imgs["center"], *right_eye_pos)
-    cv2.imshow("Eye Animation", frame)
+        # Display countdown timer
+        remaining_time = int(setup_duration - (time.time() - start_time))
+        if remaining_time > 0:
+            cv2.putText(frame, f"Setup mode: Drag eyes ({remaining_time}s)", (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
 
-    if time.time() - start_time > setup_duration:
-        print("✅ Setup complete. Starting eye animation...")
-        break
+        overlay_image(frame, eye_imgs["center"], *left_eye_pos)
+        overlay_image(frame, eye_imgs["center"], *right_eye_pos)
+        cv2.imshow("Eye Animation", frame)
 
-    if cv2.waitKey(delay) == 27:
-        cv2.destroyAllWindows()
-        exit()
+        if time.time() - start_time > setup_duration:
+            print("✅ Setup complete. Starting eye animation...")
+            break
 
-# Start eye animation thread
-eye_thread = threading.Thread(target=animate_eyes, daemon=True)
-eye_thread.start()
+        if cv2.waitKey(delay) == 27:
+            cv2.destroyAllWindows()
+            exit()
 
-# Main loop
-while True:
-    frame = np.zeros((350, 840, 3), dtype=np.uint8)
-    overlay_image(frame, eye_imgs[eye_state], *left_eye_pos)
-    overlay_image(frame, eye_imgs[eye_state], *right_eye_pos)
-    cv2.imshow("Eye Animation", frame)
-    print("👁️ Eye state:", eye_state)
-    if cv2.waitKey(delay) == 27:
-        break
+    # Start eye animation thread
+    eye_thread = threading.Thread(target=animate_eyes, daemon=True)
+    eye_thread.start()
 
-cv2.destroyAllWindows()
+    # Main loop
+    while True:
+        frame = np.zeros((350, 840, 3), dtype=np.uint8)
+        overlay_image(frame, eye_imgs[eye_state], *left_eye_pos)
+        overlay_image(frame, eye_imgs[eye_state], *right_eye_pos)
+        cv2.imshow("Eye Animation", frame)
+        # print("👁️ Eye state:", eye_state)
+        if cv2.waitKey(delay) == 27:
+            break
+
+    cv2.destroyAllWindows()
+
+
+start_eyes()
