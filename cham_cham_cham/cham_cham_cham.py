@@ -4,7 +4,7 @@ import mediapipe as mp
 import time
 import random
 import os
-from arduino_setup import command
+from arduino_setup import win
 
 def play_cham_cham_cham():
     mp_face_mesh = mp.solutions.face_mesh
@@ -53,6 +53,9 @@ def play_cham_cham_cham():
         cv2.putText(
             image, f"Lives: {lives}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4
         )
+        cv2.putText(
+            image, f"Correct: {consecutive_correct}", (1300, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4
+        )
 
         if results.multi_face_landmarks:
             face_detected = True
@@ -82,9 +85,9 @@ def play_cham_cham_cham():
                 y_angle = angles[1] * 360
                 z_angle = angles[2] * 360
 
-                if y_angle < -6:
+                if y_angle < -3:
                     detected_direction = "Left"
-                elif y_angle > 6:
+                elif y_angle > 3:
                     detected_direction = "Right"
                 elif x_angle < -3:
                     detected_direction = "Down"
@@ -120,16 +123,19 @@ def play_cham_cham_cham():
                 (0, 255, 0),
                 4,
             )
-            if time.time() - win_message_time > 3:
-                game_state = "waiting"
-                forbidden_direction = None
-                countdown_start = None
-                result_text = ""
-                consecutive_correct = 0
-                win_message_time = None
+            # if time.time() - win_message_time > 3:
+            #     game_state = "waiting"
+            #     forbidden_direction = None
+            #     countdown_start = None
+            #     result_text = ""
+            #     consecutive_correct = 0
+            #     win_message_time = None
             cv2.imshow("Head Pose Game", image)
-            if cv2.waitKey(5) & 0xFF == 27:
-                break
+            if cv2.waitKey(5) & 0xFF == 32:
+                game_state = "waiting"
+                lives = 3
+                win_message_time = None
+                consecutive_correct = 0
             continue
 
         if game_state == "waiting":
@@ -155,7 +161,7 @@ def play_cham_cham_cham():
             else:
                 forbidden_direction = random.choice(directions)
                 game_state = "playing"
-                play_start = time.time()
+
         elif game_state == "playing":
             timer = 4
             # Show the correct hand image for the forbidden direction
@@ -169,12 +175,11 @@ def play_cham_cham_cham():
                 result_text = "Wrong!"
                 color = (0, 0, 255)
                 lives -= 1
-                # command(lives)
             else:
                 os.system("afplay /System/Library/Sounds/Glass.aiff &")
                 result_text = "Correct!"
                 color = (0, 255, 0)
-                # consecutive_correct += 1
+                consecutive_correct += 1
             result_time = time.time()
             result_direction = detected_direction
             game_state = "result"
@@ -203,6 +208,9 @@ def play_cham_cham_cham():
             # cv2.putText(image, f"Score: {consecutive_correct}/5", (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0,255,0), 2)
             if consecutive_correct >= 5:
                 win_message_time = time.time()
+                os.system("afplay ./win.wav &")
+                # win()
+
             elif lives > 0 and time.time() - result_time > 2:
                 game_state = "waiting"
                 forbidden_direction = None
@@ -214,8 +222,9 @@ def play_cham_cham_cham():
         if cv2.waitKey(5) & 0xFF == 32:
             game_state = "waiting"
             lives = 3
+            consecutive_correct = 0
+            timer = 4
     cap.release()
 
 if __name__ == "__main__":
     play_cham_cham_cham()
-    cv2.destroyAllWindows()

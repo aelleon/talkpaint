@@ -8,8 +8,8 @@ from arduino_setup import win
 
 MODEL_TO_USE = "gemma3:latest"
 DEFAULT_RATE = 180  # Default speech rate for TTS
-TOTAL_QUESTIONS = 5
-WIN_TOTAL = 4  # Minimum score to win the game
+TOTAL_QUESTIONS = 1
+WIN_TOTAL = 1  # Minimum score to win the game
 BOX_LOCATIONS = [(650, 300), (650, 1300), (350, 800), (1000, 800)]
 TEXT_MAIN_COLOR = (0, 0, 0)
 TEXT_SELECTION_COLOR = (255, 0, 0)  # Color for selected text
