@@ -1,3 +1,4 @@
 from arduino_setup import *
 
-win()
+# win()
+command("0")

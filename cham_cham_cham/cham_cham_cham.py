@@ -4,7 +4,7 @@ import mediapipe as mp
 import time
 import random
 import os
-from arduino_setup import win
+from arduino_setup import win, command
 
 def play_cham_cham_cham():
     mp_face_mesh = mp.solutions.face_mesh
@@ -209,7 +209,8 @@ def play_cham_cham_cham():
             if consecutive_correct >= 5:
                 win_message_time = time.time()
                 os.system("afplay ./win.wav &")
-                # win()
+                win()
+                command("0")
 
             elif lives > 0 and time.time() - result_time > 2:
                 game_state = "waiting"
@@ -219,11 +220,16 @@ def play_cham_cham_cham():
 
         cv2.imshow("Head Pose Game", image)
 
-        if cv2.waitKey(5) & 0xFF == 32:
+        # if cv2.waitKey(5) & 0xFF == 32:
+        key = cv2.waitKey(5)
+        if key == 32:
             game_state = "waiting"
             lives = 3
             consecutive_correct = 0
             timer = 4
+        elif key == ord('w'):
+            win()
+            command("0")
     cap.release()
 
 if __name__ == "__main__":
