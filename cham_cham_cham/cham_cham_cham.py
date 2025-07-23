@@ -30,6 +30,8 @@ def play_cham_cham_cham():
     timer = 4
     lives = 3
 
+    override_direction = None
+
     hand_image = cv2.imread("hands/down.png")
     cv2.imshow("Hand Image", hand_image)
 
@@ -56,6 +58,8 @@ def play_cham_cham_cham():
         cv2.putText(
             image, f"Correct: {consecutive_correct}", (1300, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4
         )
+        cv2.putText(image, "Detected: " + str(detected_direction), (1300, 150), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 0, 0), 2)
+        cv2.putText(image, "Override: " + str(override_direction), (1300, 200), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 0, 0), 2)
 
         if results.multi_face_landmarks:
             face_detected = True
@@ -89,7 +93,7 @@ def play_cham_cham_cham():
                     detected_direction = "Left"
                 elif y_angle > 3:
                     detected_direction = "Right"
-                elif x_angle < -3:
+                elif x_angle < -1:
                     detected_direction = "Down"
                 elif x_angle > 3:
                     detected_direction = "Up"
@@ -170,6 +174,10 @@ def play_cham_cham_cham():
                 hand_image = cv2.imread(hand_images[idx])
                 cv2.imshow("Hand Image", hand_image)
 
+            if override_direction is not None:
+                detected_direction = override_direction
+                override_direction = None
+
             if detected_direction == forbidden_direction or detected_direction == "Forward":
                 os.system("afplay /System/Library/Sounds/Sosumi.aiff &")
                 result_text = "Wrong!"
@@ -184,6 +192,7 @@ def play_cham_cham_cham():
             result_direction = detected_direction
             game_state = "result"
         elif game_state == "result":
+            override_direction = None
             cv2.putText(
                 image, result_text, (20, 300), cv2.FONT_HERSHEY_SIMPLEX, 2, color, 4
             )
@@ -210,7 +219,6 @@ def play_cham_cham_cham():
                 win_message_time = time.time()
                 os.system("afplay ./win.wav &")
                 win()
-                command("0")
 
             elif lives > 0 and time.time() - result_time > 2:
                 game_state = "waiting"
@@ -227,9 +235,12 @@ def play_cham_cham_cham():
             lives = 3
             consecutive_correct = 0
             timer = 4
+            override_direction = None
         elif key == ord('w'):
+            os.system("afplay ./win.wav &")
             win()
-            command("0")
+        elif key >= 0 and key <= 3:
+            override_direction = directions[key]
     cap.release()
 
 if __name__ == "__main__":
