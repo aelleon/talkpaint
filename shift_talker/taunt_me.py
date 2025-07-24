@@ -95,7 +95,7 @@ def detect_objects(frame):
 
     detected = set()
     for *box, conf, cls in detections:
-        if conf > 0.5:
+        if conf > 0.2:
             detected.add(detected_classes[int(cls)])
     return detected
 
@@ -121,9 +121,9 @@ def pick_and_speak_taunt(detected_objects):
     if detected_objects:
         obj_list = ", ".join(detected_objects)
         prompt = (
-            f"You are a sassy and fun claw machine at a science fair. "
+            f"You are a sassy and fun claw machine at a science fair. Taunt the people nearby based on the fact you see these objects: {obj_list}"
             f"Taunt the people nearby based on the fact you see these objects: {obj_list}. "
-            f"Make it short and catchy to get them to visit the booth. make it only one or two sentences"
+            f"Make it short and catchy to get them to visit the booth. make it only one or two sentences Taunt the people nearby based on the fact you see these objects: {obj_list}"
         )
     else:
         prompt = (
@@ -142,7 +142,7 @@ def speak_message(message):
     try:
         logging.debug("🔊 Speaking message...")
         # Using macOS say for best mouth sync
-        subprocess.run(["say", message])
+        subprocess.run(["say", message, "-v", "Daniel"])
         on_speech_end(None, None)
     except Exception as e:
         logging.error(f"TTS error: {e}")
